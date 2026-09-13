@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -55,8 +56,14 @@ HOURLY_ITEMS = [
     "hly-air-tmp",
     "hly-precip",
     "hly-rel-hum",
-    "hly-eto",
+    "hly-asce-eto",
 ]
+
+# CIMIS caps a single request at 5,020 records (confirmed via a real
+# [ERR2112-DATA VOLUME VIOLATION] response). One record per day for daily
+# data, 24/day for hourly -- chunk sizes below stay comfortably under that.
+MAX_DAILY_CHUNK_DAYS = 4000
+MAX_HOURLY_CHUNK_DAYS = 180
 
 RAW_DIR = REPO_ROOT / "data" / "climate" / "raw_json"
 OUTPUT_DAILY = REPO_ROOT / "data" / "climate" / "cimis_lodi_daily.csv"
@@ -75,6 +82,13 @@ def _get_credentials() -> tuple[str, str]:
 
 
 def _fetch(start_date: str, end_date: str, is_hourly: bool, data_items: list[str]) -> dict:
+    """
+    Auth here is an HTTP header, NOT the `appKey` query param the docs
+    describe for the older /api/data endpoint -- confirmed against a real
+    request: `appKey=...` as a query param gets silently WAF-blocked
+    ("Request Rejected") on this StationWeb endpoint, while the Azure API
+    Management standard header below returns real data.
+    """
     api_key, station_id = _get_credentials()
     params = {
         "stationNbrs": station_id,
@@ -83,9 +97,9 @@ def _fetch(start_date: str, end_date: str, is_hourly: bool, data_items: list[str
         "isHourly": "true" if is_hourly else "false",
         "unitOfMeasure": "E",  # English units: F, inches, mph
         "dataItems": ",".join(data_items),
-        "appKey": api_key,
     }
-    resp = requests.get(BASE_URL, params=params, timeout=60)
+    headers = {"Ocp-Apim-Subscription-Key": api_key}
+    resp = requests.get(BASE_URL, params=params, headers=headers, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
@@ -123,31 +137,60 @@ def _extract_records(payload: dict) -> list[dict]:
     )
 
 
+def _pascal_case(dash_case_item: str) -> str:
+    """'day-air-tmp-avg' -> 'DayAirTmpAvg' -- confirmed against a real
+    response: CIMIS echoes dataItems back as PascalCase keys, not the
+    dash-case names used to request them."""
+    return "".join(part.capitalize() for part in dash_case_item.split("-"))
+
+
 def _flatten_record(record: dict, data_items: list[str]) -> dict:
-    row = {"date": record.get("Date"), "hour": record.get("Hour")}
+    row = {"date": record.get("Date")}
+    if record.get("Hour") is not None:
+        row["hour"] = record["Hour"]
     for item in data_items:
-        field = record.get(item)
+        field = record.get(_pascal_case(item))
         row[item.replace("-", "_")] = field.get("Value") if isinstance(field, dict) else field
     return row
 
 
+def _date_chunks(start_date: str, end_date: str, max_days: int) -> list[tuple[str, str]]:
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+    chunks = []
+    cursor = start
+    while cursor <= end:
+        chunk_end = min(cursor + timedelta(days=max_days - 1), end)
+        chunks.append((cursor.isoformat(), chunk_end.isoformat()))
+        cursor = chunk_end + timedelta(days=1)
+    return chunks
+
+
 def fetch_daily(start_date: str, end_date: str) -> pd.DataFrame:
-    payload = _fetch(start_date, end_date, is_hourly=False, data_items=DAILY_ITEMS)
-    _save_raw(payload, f"daily_{start_date}_{end_date}")
-    records = _extract_records(payload)
-    df = pd.DataFrame([_flatten_record(r, DAILY_ITEMS) for r in records])
+    frames = []
+    for chunk_start, chunk_end in _date_chunks(start_date, end_date, MAX_DAILY_CHUNK_DAYS):
+        payload = _fetch(chunk_start, chunk_end, is_hourly=False, data_items=DAILY_ITEMS)
+        _save_raw(payload, f"daily_{chunk_start}_{chunk_end}")
+        records = _extract_records(payload)
+        frames.append(pd.DataFrame([_flatten_record(r, DAILY_ITEMS) for r in records]))
+    df = pd.concat(frames, ignore_index=True)
     df["date"] = pd.to_datetime(df["date"])
     return df
 
 
 def fetch_hourly(start_date: str, end_date: str) -> pd.DataFrame:
-    payload = _fetch(start_date, end_date, is_hourly=True, data_items=HOURLY_ITEMS)
-    _save_raw(payload, f"hourly_{start_date}_{end_date}")
-    records = _extract_records(payload)
-    df = pd.DataFrame([_flatten_record(r, HOURLY_ITEMS) for r in records])
-    df["timestamp"] = pd.to_datetime(df["date"]) + pd.to_timedelta(
-        df["hour"].astype(float), unit="h"
-    )
+    frames = []
+    for chunk_start, chunk_end in _date_chunks(start_date, end_date, MAX_HOURLY_CHUNK_DAYS):
+        payload = _fetch(chunk_start, chunk_end, is_hourly=True, data_items=HOURLY_ITEMS)
+        _save_raw(payload, f"hourly_{chunk_start}_{chunk_end}")
+        records = _extract_records(payload)
+        frames.append(pd.DataFrame([_flatten_record(r, HOURLY_ITEMS) for r in records]))
+    df = pd.concat(frames, ignore_index=True)
+    # CIMIS hour labels are hour-ending, "0100".."2400" (not 0-23), e.g.
+    # "0100" = the hour ending at 1am. Adding hour//100 hours to the date
+    # handles "2400" rolling correctly into the next day at 00:00.
+    hour_of_day = df["hour"].astype(int) // 100
+    df["timestamp"] = pd.to_datetime(df["date"]) + pd.to_timedelta(hour_of_day, unit="h")
     return df.drop(columns=["date", "hour"])
 
 
