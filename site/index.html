@@ -1,27 +1,320 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cherry Farm Precision Agriculture</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 3rem auto; padding: 0 1rem; color: #222; }
-    h1 { font-size: 1.6rem; }
-    .status { background: #fff6e5; border: 1px solid #e8c97a; padding: 0.8rem 1rem; border-radius: 6px; }
-    code { background: #f4f4f4; padding: 0.1rem 0.35rem; border-radius: 3px; }
-  </style>
-</head>
-<body>
+<title>Cherry Farm Dashboard</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6; /* blue -- station_1 / harvested */
+    --status-good:    #0ca30c;
+    --status-critical:#d03b3b;
+    --status-warning: #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --status-good:    #0ca30c;
+      --status-critical:#e66767;
+      --status-warning: #fab219;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --status-good:    #0ca30c;
+    --status-critical:#e66767;
+    --status-warning: #fab219;
+  }
+
+  .viz-root {
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 0 16px 64px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .viz-root h1 { font-size: 1.5rem; margin: 32px 0 4px; }
+  .viz-root h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .viz-root p.lede { color: var(--text-secondary); margin: 0 0 24px; max-width: 60ch; }
+  .viz-root section { margin: 40px 0; }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .banner {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--series-1);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+  .banner strong { color: var(--text-primary); }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 2px;
+    background: var(--gridline);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .kpi-tile { background: var(--surface-1); padding: 14px 12px; }
+  .kpi-tile .label { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi-tile .value { font-size: 1.4rem; font-weight: 600; }
+  .kpi-tile .value.muted { color: var(--text-muted); }
+
+  svg text { fill: var(--text-secondary); font-size: 11px; font-family: inherit; }
+  .bar-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .axis-line { stroke: var(--baseline); stroke-width: 1; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 0.8rem; color: var(--text-secondary); }
+  .legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  table.data-table th, table.data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); }
+  table.data-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  table.data-table td.num { font-variant-numeric: tabular-nums; }
+
+  .finding-card { border-left: 3px solid var(--series-1); padding-left: 14px; margin-bottom: 20px; }
+  .finding-card h3 { margin: 0 0 4px; font-size: 1rem; }
+  .finding-card .outcome { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+  .finding-card p { margin: 0; font-size: 0.9rem; color: var(--text-primary); }
+  .finding-card.failure { border-left-color: var(--status-critical); }
+
+  figure { margin: 0; }
+  figure img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
+  figcaption { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; }
+
+  footer { color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--gridline); padding-top: 16px; margin-top: 48px; }
+  footer a { color: var(--series-1); }
+
+  a { color: var(--series-1); }
+  code { background: var(--gridline); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+</style>
+
+<div class="viz-root">
   <h1>Cherry Farm Precision Agriculture</h1>
-  <p class="status">
-    Dashboard placeholder — the data pipeline (see <code>models/</code> and
-    <code>analysis/</code>) is running against real sensor data and a
-    synthetic climate feed while the real CIMIS climate connection is set
-    up. Live charts (time series, chill/GDD progress, irrigation
-    recommendations) land here next, reading from a published data file
-    rather than hardcoded numbers.
-  </p>
-  <p>See the repository <code>README.md</code> for architecture, data
-  provenance, and current status.</p>
-</body>
-</html>
+  <p class="lede">A real IoT sensor network and decision-support pipeline for a family cherry farm in Lodi, CA. This page reads real project data committed to the repo &mdash; nothing here is live (GitHub Pages can't run the Python pipeline), so every section says as-of-when it was generated.</p>
+
+  <div class="banner">
+    <strong>Data provenance:</strong> everything on this page is real (sensor readings, packing-house yield records, CIMIS climate data). This project also keeps a clearly separate <code>data/simulated/</code> folder of fabricated data used only to test the pipeline &mdash; nothing from it appears here. See <a href="https://github.com/shreyachitt-pixel/cherry-farm-precision-ag/blob/main/data/README.md">data/README.md</a> for full provenance notes.
+  </div>
+
+  <section id="yield-section">
+    <h2>Yield history</h2>
+    <div class="card">
+      <div id="yield-chart" style="overflow-x:auto"></div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--status-good)"></span>Harvested</span>
+        <span><span class="swatch" style="background:var(--status-critical)"></span>Crop failure</span>
+        <span><span class="swatch" style="background:var(--text-muted)"></span>Pre-bearing</span>
+        <span><span class="swatch" style="background:none;border:2px dashed var(--text-muted)"></span>Data pending</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="kpi-section">
+    <h2>Real sensor data completeness</h2>
+    <div id="kpi-row" class="kpi-row"></div>
+  </section>
+
+  <section id="timeseries-section">
+    <h2>Real sensor readings over time</h2>
+    <figure>
+      <img src="assets/01_time_series.png" alt="Time series of soil moisture, air temperature, humidity, soil temperature, and light across both stations" loading="lazy">
+      <figcaption>Gaps reflect real deployment history: sensors added incrementally, station_1 offline Aug 29&ndash;Sep 5, station_3 not yet deployed. See <code>analysis/01_eda.py</code>.</figcaption>
+    </figure>
+  </section>
+
+  <section id="calibration-section">
+    <h2>Real-data calibration: 2024 vs. 2026</h2>
+    <p class="lede" style="margin-bottom:16px">The chill/GDD models checked against actual outcomes, using real CIMIS station data (station 262, Linden) &mdash; see <code>analysis/02_real_calibration_2024_2026.py</code>.</p>
+    <div id="findings"></div>
+  </section>
+
+  <section id="frost-section">
+    <h2>Frost risk reference (bud stage &rarr; critical temperature)</h2>
+    <p class="lede" style="margin-bottom:16px">Buds get far more cold-sensitive as they develop. Source: Michigan State University Extension's critical spring temperature table (10%/90% bud kill). The live frost-alert monitor (<code>analysis/04_frost_alert_monitor.py</code>) checks the real 7-day NWS forecast against this table &mdash; run it locally for current status; a static page can't run it for you.</p>
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Bud stage</th><th class="num">10% kill (&deg;F)</th><th class="num">90% kill (&deg;F)</th></tr></thead>
+        <tbody id="frost-table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="outlook-section">
+    <h2>2027 outlook</h2>
+    <div class="card">
+      <p style="margin:0 0 10px">Weather 6+ months out isn't predictable with real confidence &mdash; but a very strong El Ni&ntilde;o is forecast (NOAA CPC, &gt;90% probability) with the wet season peaking Jan&ndash;Mar 2027, right in this orchard's bloom window. Real 2026 CIMIS data also shows heat spikes in June&ndash;July landing inside the literature-documented flower-bud-initiation window for next year's crop &mdash; unverifiable from farm sensors since they weren't deployed yet during that window.</p>
+      <p style="margin:0"><a href="https://github.com/shreyachitt-pixel/cherry-farm-precision-ag/blob/main/analysis/2027_outlook.md">Full outlook and recommendations &rarr;</a></p>
+    </div>
+  </section>
+
+  <footer id="footer">
+    Loading generation timestamp&hellip;
+    &middot; <a href="https://github.com/shreyachitt-pixel/cherry-farm-precision-ag">Repository</a>
+  </footer>
+</div>
+
+<script>
+async function main() {
+  const res = await fetch('data/dashboard.json');
+  const data = await res.json();
+
+  renderYieldChart(data.yield_history);
+  renderKpiRow(data.sensor_completeness.per_column_pct);
+  renderFindings(data.calibration_findings);
+  renderFrostTable();
+  renderFooter(data.generated_at, data.cimis_station);
+}
+
+function statusColor(status) {
+  if (status === 'harvested') return 'var(--status-good)';
+  if (status === 'failure') return 'var(--status-critical)';
+  return 'var(--text-muted)';
+}
+function statusLabel(status) {
+  return { harvested: 'Harvested', failure: 'Crop failure', 'pre-bearing': 'Pre-bearing', pending: 'Data pending' }[status] || status;
+}
+
+function renderYieldChart(rows) {
+  const w = 820, h = 260, padL = 56, padB = 46, padT = 16, padR = 16;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const maxVal = Math.max(...rows.map(r => r.lbs_delivered || 0), 1000);
+  const bandW = plotW / rows.length;
+  const barW = Math.min(24, bandW * 0.5);
+
+  const yTicks = [0, Math.round(maxVal / 2 / 1000) * 1000, Math.round(maxVal / 1000) * 1000];
+  // Fixed intrinsic size, not viewBox-scaled to container width: a narrow
+  // (phone-width) container scrolls horizontally instead of shrinking the
+  // text to illegible sizes -- see the overflow-x:auto wrapper around this.
+  let svg = `<svg width="${w}" height="${h}" style="display:block;min-width:${w}px" role="img" aria-label="Yield by year, 2021 to 2026, in pounds delivered">`;
+
+  yTicks.forEach(t => {
+    const y = padT + plotH - (t / maxVal) * plotH;
+    svg += `<line class="gridline" x1="${padL}" x2="${w - padR}" y1="${y}" y2="${y}" />`;
+    svg += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end">${t.toLocaleString()}</text>`;
+  });
+
+  rows.forEach((r, i) => {
+    const cx = padL + bandW * i + bandW / 2;
+    const val = r.lbs_delivered || 0;
+    const isPending = r.status === 'pending';
+    const barH = isPending ? 10 : Math.max(2, (val / maxVal) * plotH);
+    const y = padT + plotH - barH;
+
+    if (isPending) {
+      svg += `<rect x="${cx - barW/2}" y="${padT + plotH - 10}" width="${barW}" height="10" rx="4"
+                fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="3,3" />`;
+      svg += `<text class="bar-label" x="${cx}" y="${padT + plotH - 18}" text-anchor="middle">?</text>`;
+    } else {
+      svg += `<rect x="${cx - barW/2}" y="${y}" width="${barW}" height="${barH}" rx="4"
+                fill="${statusColor(r.status)}" />`;
+      if (val > 0) {
+        svg += `<text class="bar-label" x="${cx}" y="${y - 8}" text-anchor="middle">${val.toLocaleString()}</text>`;
+      }
+    }
+    svg += `<text x="${cx}" y="${h - padB + 20}" text-anchor="middle">${r.year}</text>`;
+    svg += `<text x="${cx}" y="${h - padB + 34}" text-anchor="middle" style="font-size:9px">${statusLabel(r.status)}</text>`;
+  });
+
+  svg += `<line class="axis-line" x1="${padL}" x2="${w - padR}" y1="${padT + plotH}" y2="${padT + plotH}" />`;
+  svg += `</svg>`;
+  document.getElementById('yield-chart').innerHTML = svg;
+}
+
+function renderKpiRow(pct) {
+  const labels = {
+    soil_moisture_1: 'Soil moisture 1', soil_moisture_2: 'Soil moisture 2',
+    air_temp: 'Air temp', humidity: 'Humidity', soil_temp: 'Soil temp', light_lux: 'Light',
+  };
+  let html = '';
+  for (const [key, val] of Object.entries(pct)) {
+    html += `<div class="kpi-tile"><div class="label">${labels[key] || key}</div>
+      <div class="value ${val < 50 ? 'muted' : ''}">${val}%</div></div>`;
+  }
+  document.getElementById('kpi-row').innerHTML = html;
+}
+
+function renderFindings(findings) {
+  let html = '';
+  findings.forEach(f => {
+    const cls = f.outcome.includes('failure') ? 'finding-card failure' : 'finding-card';
+    html += `<div class="${cls}">
+      <h3>${f.year}</h3>
+      <div class="outcome">${f.outcome} &middot; chill met ${f.chill_met} &middot; reported bloom: ${f.reported_bloom}</div>
+      <p>${f.finding}</p>
+    </div>`;
+  });
+  document.getElementById('findings').innerHTML = html;
+}
+
+function renderFrostTable() {
+  // Mirrors models/frost_risk.py CRITICAL_TEMPS_F -- update both if the source table changes.
+  const stages = [
+    ['Dormant / swollen bud', 17, 5],
+    ['Side green', 22, 9],
+    ['Green tip', 25, 14],
+    ['Tight cluster', 26, 17],
+    ['Open cluster', 27, 21],
+    ['First white', 27, 24],
+    ['First bloom', 28, 25],
+    ['Full bloom', 28, 25],
+    ['Post-bloom (shuck)', 28, 25],
+  ];
+  let html = '';
+  stages.forEach(([name, t10, t90]) => {
+    html += `<tr><td>${name}</td><td class="num">${t10}</td><td class="num">${t90}</td></tr>`;
+  });
+  document.getElementById('frost-table-body').innerHTML = html;
+}
+
+function renderFooter(generatedAt, station) {
+  const d = new Date(generatedAt);
+  document.getElementById('footer').innerHTML =
+    `Data generated ${d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+     from CIMIS station ${station.id} (${station.name}, ${station.county} County) and real farm records.
+     Re-run <code>analysis/05_export_dashboard_data.py</code> to refresh.
+     &middot; <a href="https://github.com/shreyachitt-pixel/cherry-farm-precision-ag">Repository</a>`;
+}
+
+main().catch(err => {
+  document.querySelector('.viz-root').insertAdjacentHTML('afterbegin',
+    `<div class="banner" style="border-left-color:var(--status-critical)">
+      Could not load dashboard data (${err.message}). If you're viewing this file directly
+      (file://) rather than through a server, browsers block local JSON fetches &mdash;
+      serve the site/ folder locally (e.g. <code>python3 -m http.server</code>) or view it
+      via GitHub Pages instead.
+    </div>`);
+});
+</script>

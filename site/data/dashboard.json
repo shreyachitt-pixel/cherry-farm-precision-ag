@@ -1,0 +1,85 @@
+{
+  "generated_at": "2026-09-13T23:55:55.584926+00:00",
+  "yield_history": [
+    {
+      "year": 2021,
+      "lbs_delivered": 0,
+      "status": "pre-bearing"
+    },
+    {
+      "year": 2022,
+      "lbs_delivered": 0,
+      "status": "pre-bearing"
+    },
+    {
+      "year": 2023,
+      "lbs_delivered": 0,
+      "status": "pre-bearing"
+    },
+    {
+      "year": 2024,
+      "lbs_delivered": 30514,
+      "status": "harvested"
+    },
+    {
+      "year": 2025,
+      "lbs_delivered": null,
+      "status": "pending"
+    },
+    {
+      "year": 2026,
+      "lbs_delivered": 0,
+      "status": "failure"
+    }
+  ],
+  "sensor_completeness": {
+    "total_readings": 239,
+    "date_range": [
+      "2026-08-25 21:28:25",
+      "2026-09-13 09:37:43"
+    ],
+    "per_column_pct": {
+      "soil_moisture_1": 100.0,
+      "soil_moisture_2": 100.0,
+      "air_temp": 97.1,
+      "humidity": 97.1,
+      "soil_temp": 37.2,
+      "light_lux": 19.2
+    },
+    "stations": [
+      {
+        "station": "station_1",
+        "min": "2026-08-25 21:28:25",
+        "max": "2026-08-29 16:24:03",
+        "count": 147
+      },
+      {
+        "station": "station_2",
+        "min": "2026-09-05 18:08:32",
+        "max": "2026-09-13 09:37:43",
+        "count": 92
+      }
+    ]
+  },
+  "calibration_findings": [
+    {
+      "year": 2024,
+      "outcome": "30,514 lbs delivered (good harvest)",
+      "chill_met": "2024-02-13",
+      "reported_bloom": "January 2024 (approximate)",
+      "finding": "Model-predicted dormancy break (Feb 13) is after the reported bloom month. January 2024 had real hard freezes (down to 25.5F) that would likely have damaged an active bloom -- suggesting true bloom was later than reported, consistent with the good outcome."
+    },
+    {
+      "year": 2026,
+      "outcome": "0 lbs -- total crop failure",
+      "chill_met": "2026-01-26",
+      "reported_bloom": "Not precisely recorded",
+      "finding": "Chill was satisfied earlier than 2024, so chill sufficiency isn't the driver. A real frost event Feb 20-21, 2026 (29.2F) is the leading candidate. Real heat (up to 100.3F) also shows up June-July, within the literature-documented flower-bud-initiation window for the 2027 crop."
+    }
+  ],
+  "cimis_station": {
+    "id": 262,
+    "name": "Linden",
+    "county": "San Joaquin"
+  }
+}
