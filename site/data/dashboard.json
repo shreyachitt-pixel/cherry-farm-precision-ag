@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T23:55:55.584926+00:00",
+  "generated_at": "2026-09-14T00:33:59.548331+00:00",
   "yield_history": [
     {
       "year": 2021,
@@ -77,6 +77,96 @@
       "finding": "Chill was satisfied earlier than 2024, so chill sufficiency isn't the driver. A real frost event Feb 20-21, 2026 (29.2F) is the leading candidate. Real heat (up to 100.3F) also shows up June-July, within the literature-documented flower-bud-initiation window for the 2027 crop."
     }
   ],
+  "uncertainty_propagation": {
+    "n_trials": 2000,
+    "chill_met_date_deterministic": "2024-02-13",
+    "chill_met_offset_days": {
+      "median": 0.1,
+      "p5": -1.9,
+      "p95": 9.1
+    },
+    "chill_met_note": "Distribution is genuinely multimodal (clustered at a few discrete offsets), not a smooth spread -- a handful of specific real days sit right at the 45F chill threshold, so a small sensor bias flips whether those particular days count.",
+    "gdd_by_mar15": {
+      "median": 429,
+      "p5": 311,
+      "p95": 439,
+      "unit": "GDD-F"
+    },
+    "eto_on_apr15": {
+      "median": 0.154,
+      "p5": 0.088,
+      "p95": 0.217,
+      "unit": "in/day"
+    }
+  },
+  "chill_threshold_inference": {
+    "prior": {
+      "mean": 750,
+      "ci90_lo": 627,
+      "ci90_hi": 873
+    },
+    "posterior": {
+      "mean": 730,
+      "std": 69,
+      "ci90_lo": 616,
+      "ci90_hi": 842
+    },
+    "width_ratio_pct": 92,
+    "interpretation": "Posterior barely narrower than the prior -- correct behavior given how weak two years of soft evidence really is. Not read as 'the threshold is now known'; it's evidence two years isn't enough to move far past the literature default."
+  },
+  "chill_portions": [
+    {
+      "year": 2024,
+      "chill_hours": 861,
+      "chill_portions": 67.7
+    },
+    {
+      "year": 2026,
+      "chill_hours": 1026,
+      "chill_portions": 66.1
+    }
+  ],
+  "pre_registration": {
+    "n_hypotheses": 4,
+    "alpha_bonferroni": 0.0125,
+    "minimum_n_gate": 8,
+    "real_bearing_years_so_far": 2,
+    "required_n_r05_80pct_power": 29.0,
+    "required_n_r07_80pct_power": 13.4,
+    "power_table": [
+      {
+        "n": 5,
+        "power_r05": 0.118,
+        "power_r07": 0.232
+      },
+      {
+        "n": 8,
+        "power_r05": 0.232,
+        "power_r07": 0.492
+      },
+      {
+        "n": 10,
+        "power_r05": 0.306,
+        "power_r07": 0.631
+      },
+      {
+        "n": 15,
+        "power_r05": 0.477,
+        "power_r07": 0.852
+      },
+      {
+        "n": 20,
+        "power_r05": 0.62,
+        "power_r07": 0.947
+      }
+    ],
+    "hypotheses": [
+      "H1: bloom-window frost exposure vs. yield",
+      "H2: prior-summer heat (bud initiation) vs. next year's yield",
+      "H3: pre-harvest rain vs. yield (cracking)",
+      "H4: winter chill sufficiency vs. yield"
+    ]
+  },
   "cimis_station": {
     "id": 262,
     "name": "Linden",

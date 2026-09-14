@@ -161,6 +161,39 @@
     <div id="findings"></div>
   </section>
 
+  <section id="uncertainty-section">
+    <h2>Uncertainty propagation: distributions, not single numbers</h2>
+    <p class="lede" style="margin-bottom:16px">2,000 Monte Carlo trials propagating real, cited measurement/model uncertainty (sensor accuracy, the Hargreaves ETo formula's own published error) through the chill/GDD/ETo models, using real 2024 CIMIS data. See <code>analysis/07_uncertainty_propagation.py</code>.</p>
+    <figure>
+      <img src="assets/04_uncertainty_propagation.png" alt="Three histograms: chill-met date shift, cumulative GDD by March 15, and ETo on April 15, each showing a distribution rather than a single value" loading="lazy">
+      <figcaption id="uncertainty-caption">Loading&hellip;</figcaption>
+    </figure>
+  </section>
+
+  <section id="bayesian-section">
+    <h2>Bayesian inference: how well-supported is the 750-hour chill assumption?</h2>
+    <p class="lede" style="margin-bottom:16px">Combines the literature prior with real 2024/2026 outcomes as weak evidence &mdash; not a regression (two years is nowhere near enough data to fit a parameter that way). See <code>analysis/08_chill_threshold_inference.py</code>.</p>
+    <figure>
+      <img src="assets/05_chill_threshold_posterior.png" alt="Prior vs posterior probability density for the chill-hours threshold parameter" loading="lazy">
+      <figcaption id="bayesian-caption">Loading&hellip;</figcaption>
+    </figure>
+  </section>
+
+  <section id="chill-portions-section">
+    <h2>Simple chill-hours vs. the Dynamic Model (Chill Portions)</h2>
+    <p class="lede" style="margin-bottom:16px">The more accurate, literature-validated model for 'Bing' sweet cherry in California &mdash; a reversible two-step kinetic process, not a simple threshold count. See <code>models/chill_portions.py</code> and <code>analysis/09_chill_portions_real_data.py</code>.</p>
+    <div class="card" style="overflow-x:auto; margin-bottom:16px">
+      <table class="data-table">
+        <thead><tr><th>Year</th><th class="num">Chill hours</th><th class="num">Chill portions</th></tr></thead>
+        <tbody id="chill-portions-table-body"></tbody>
+      </table>
+    </div>
+    <div class="banner">The two models actually <strong>disagree</strong> on which year had more accumulated chill: 2026 leads on hours, 2024 leads on portions &mdash; a real demonstration that model choice isn't academic.</div>
+    <figure style="margin-top:16px">
+      <img src="assets/06_chill_portions_vs_hours.png" alt="Normalized accumulation curves comparing chill-hours count and Dynamic Model chill portions for 2024 and 2026" loading="lazy">
+    </figure>
+  </section>
+
   <section id="frost-section">
     <h2>Frost risk reference (bud stage &rarr; critical temperature)</h2>
     <p class="lede" style="margin-bottom:16px">Buds get far more cold-sensitive as they develop. Source: Michigan State University Extension's critical spring temperature table (10%/90% bud kill). The live frost-alert monitor (<code>analysis/04_frost_alert_monitor.py</code>) checks the real 7-day NWS forecast against this table &mdash; run it locally for current status; a static page can't run it for you.</p>
@@ -169,6 +202,21 @@
         <thead><tr><th>Bud stage</th><th class="num">10% kill (&deg;F)</th><th class="num">90% kill (&deg;F)</th></tr></thead>
         <tbody id="frost-table-body"></tbody>
       </table>
+    </div>
+  </section>
+
+  <section id="preregistration-section">
+    <h2>Pre-registered hypothesis tests (locked before the data exists)</h2>
+    <p class="lede" style="margin-bottom:16px">Four environmental-driver hypotheses, their exact predictor definitions, and the statistical tests to run &mdash; fixed <em>before</em> enough years accumulate to test them, specifically to prevent after-the-fact cherry-picking. See <a href="https://github.com/shreyachitt-pixel/cherry-farm-precision-ag/blob/main/analysis/PRE_REGISTRATION.md">the full pre-registration &rarr;</a></p>
+    <div class="card">
+      <div id="prereg-summary" class="kpi-row" style="margin-bottom:16px"></div>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin:0 0 10px">Real power analysis (<code>models/statistical_power.py</code>, validated against Cohen's published tables) &mdash; why every test waits:</p>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Bearing years (n)</th><th class="num">Power to detect r=0.5</th><th class="num">Power to detect r=0.7</th></tr></thead>
+          <tbody id="power-table-body"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -194,7 +242,12 @@ async function main() {
   renderYieldChart(data.yield_history);
   renderKpiRow(data.sensor_completeness.per_column_pct);
   renderFindings(data.calibration_findings);
+  renderUncertaintyCaption(data.uncertainty_propagation);
+  renderBayesianCaption(data.chill_threshold_inference);
+  renderChillPortionsTable(data.chill_portions);
   renderFrostTable();
+  renderPreregSummary(data.pre_registration);
+  renderPowerTable(data.pre_registration.power_table);
   renderFooter(data.generated_at, data.cimis_station);
 }
 
@@ -277,6 +330,50 @@ function renderFindings(findings) {
     </div>`;
   });
   document.getElementById('findings').innerHTML = html;
+}
+
+function renderUncertaintyCaption(u) {
+  document.getElementById('uncertainty-caption').textContent =
+    `Chill-met date: median ${u.chill_met_offset_days.median >= 0 ? '+' : ''}${u.chill_met_offset_days.median} days ` +
+    `(90% interval ${u.chill_met_offset_days.p5} to +${u.chill_met_offset_days.p95} days) relative to the deterministic ` +
+    `${u.chill_met_date_deterministic} estimate. ${u.chill_met_note}`;
+}
+
+function renderBayesianCaption(b) {
+  document.getElementById('bayesian-caption').textContent =
+    `Prior: ${b.prior.mean}h (90% interval ${b.prior.ci90_lo}-${b.prior.ci90_hi}h). ` +
+    `Posterior given real 2024+2026 outcomes: ${b.posterior.mean}h (90% credible interval ` +
+    `${b.posterior.ci90_lo}-${b.posterior.ci90_hi}h, ${b.width_ratio_pct}% as wide as the prior's). ${b.interpretation}`;
+}
+
+function renderChillPortionsTable(rows) {
+  let html = '';
+  rows.forEach(r => {
+    html += `<tr><td>${r.year}</td><td class="num">${r.chill_hours.toLocaleString()}h</td><td class="num">${r.chill_portions} CP</td></tr>`;
+  });
+  document.getElementById('chill-portions-table-body').innerHTML = html;
+}
+
+function renderPreregSummary(p) {
+  const tiles = [
+    ['Hypotheses registered', p.n_hypotheses],
+    ['Bonferroni alpha', p.alpha_bonferroni],
+    ['Min. n before any test', p.minimum_n_gate],
+    ['Real bearing years so far', p.real_bearing_years_so_far],
+  ];
+  let html = '';
+  tiles.forEach(([label, value]) => {
+    html += `<div class="kpi-tile"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+  });
+  document.getElementById('prereg-summary').innerHTML = html;
+}
+
+function renderPowerTable(rows) {
+  let html = '';
+  rows.forEach(r => {
+    html += `<tr><td>${r.n}</td><td class="num">${(r.power_r05 * 100).toFixed(0)}%</td><td class="num">${(r.power_r07 * 100).toFixed(0)}%</td></tr>`;
+  });
+  document.getElementById('power-table-body').innerHTML = html;
 }
 
 function renderFrostTable() {

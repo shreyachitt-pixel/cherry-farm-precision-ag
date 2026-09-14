@@ -11,6 +11,7 @@ Run:
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -88,12 +89,79 @@ def calibration_findings() -> list[dict]:
     ]
 
 
+def uncertainty_propagation_summary() -> dict:
+    # Hand-cited from a real run of analysis/07_uncertainty_propagation.py
+    # (2000 Monte Carlo trials, real 2024 CIMIS data) -- re-run that
+    # script to reproduce/verify.
+    return {
+        "n_trials": 2000,
+        "chill_met_date_deterministic": "2024-02-13",
+        "chill_met_offset_days": {"median": 0.1, "p5": -1.9, "p95": 9.1},
+        "chill_met_note": "Distribution is genuinely multimodal (clustered at a few discrete "
+                           "offsets), not a smooth spread -- a handful of specific real days sit "
+                           "right at the 45F chill threshold, so a small sensor bias flips whether "
+                           "those particular days count.",
+        "gdd_by_mar15": {"median": 429, "p5": 311, "p95": 439, "unit": "GDD-F"},
+        "eto_on_apr15": {"median": 0.154, "p5": 0.088, "p95": 0.217, "unit": "in/day"},
+    }
+
+
+def chill_threshold_inference_summary() -> dict:
+    # Hand-cited from a real run of analysis/08_chill_threshold_inference.py.
+    return {
+        "prior": {"mean": 750, "ci90_lo": 627, "ci90_hi": 873},
+        "posterior": {"mean": 730, "std": 69, "ci90_lo": 616, "ci90_hi": 842},
+        "width_ratio_pct": 92,
+        "interpretation": "Posterior barely narrower than the prior -- correct behavior given how "
+                           "weak two years of soft evidence really is. Not read as 'the threshold is "
+                           "now known'; it's evidence two years isn't enough to move far past the "
+                           "literature default.",
+    }
+
+
+def chill_portions_summary() -> list[dict]:
+    # Hand-cited from a real run of analysis/09_chill_portions_real_data.py.
+    return [
+        {"year": 2024, "chill_hours": 861, "chill_portions": 67.7},
+        {"year": 2026, "chill_hours": 1026, "chill_portions": 66.1},
+    ]
+
+
+def pre_registration_summary() -> dict:
+    sys.path.insert(0, str(REPO_ROOT))
+    from models.statistical_power import required_n_for_correlation, achieved_power_for_n
+
+    power_table = [
+        {"n": n, "power_r05": round(achieved_power_for_n(n, 0.5), 3), "power_r07": round(achieved_power_for_n(n, 0.7), 3)}
+        for n in [5, 8, 10, 15, 20]
+    ]
+    return {
+        "n_hypotheses": 4,
+        "alpha_bonferroni": 0.0125,
+        "minimum_n_gate": 8,
+        "real_bearing_years_so_far": 2,
+        "required_n_r05_80pct_power": round(required_n_for_correlation(0.5), 1),
+        "required_n_r07_80pct_power": round(required_n_for_correlation(0.7), 1),
+        "power_table": power_table,
+        "hypotheses": [
+            "H1: bloom-window frost exposure vs. yield",
+            "H2: prior-summer heat (bud initiation) vs. next year's yield",
+            "H3: pre-harvest rain vs. yield (cracking)",
+            "H4: winter chill sufficiency vs. yield",
+        ],
+    }
+
+
 def main() -> None:
     data = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "yield_history": yield_history(),
         "sensor_completeness": sensor_completeness(),
         "calibration_findings": calibration_findings(),
+        "uncertainty_propagation": uncertainty_propagation_summary(),
+        "chill_threshold_inference": chill_threshold_inference_summary(),
+        "chill_portions": chill_portions_summary(),
+        "pre_registration": pre_registration_summary(),
         "cimis_station": {"id": 262, "name": "Linden", "county": "San Joaquin"},
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
