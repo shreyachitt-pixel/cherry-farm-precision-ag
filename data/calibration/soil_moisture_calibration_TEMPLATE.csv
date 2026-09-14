@@ -1,0 +1,7 @@
+sample_id,sensor_channel,raw_adc,container_volume_cm3,container_tare_g,gross_wet_mass_g,gross_dry_mass_g,notes
+1,soil_moisture_1,,,,,,air-dry sample
+2,soil_moisture_1,,,,,,naturally moist sample
+3,soil_moisture_1,,,,,,saturated sample
+4,soil_moisture_2,,,,,,air-dry sample
+5,soil_moisture_2,,,,,,naturally moist sample
+6,soil_moisture_2,,,,,,saturated sample
