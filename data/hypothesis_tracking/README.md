@@ -23,10 +23,8 @@ predictor needs for that year (checked honestly by
 
 `analysis/PRE_REGISTRATION.md` was first committed at:
 
-- **Commit:** `PENDING -- filled in by the follow-up commit immediately
-  after the pre-registration's own commit` (a commit can't contain its
-  own hash, so this file records it one commit later, same as any
-  git-based timestamp lock).
+- **Commit:** `643682b` (also independently checkable via the commit
+  timestamp on GitHub, not just this file's own claim)
 - **Date:** 2026-09-13
 
 This commit hash is the actual proof the hypotheses, predictors, and
