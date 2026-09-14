@@ -21,6 +21,11 @@ leading candidate for that year's total crop failure — see
 and flags risk hours by bud stage. `analysis/2027_outlook.md` lays out
 what's actually knowable about next season and what to do now.
 
+**See `OPEN_ITEMS.md` for the current, checkable list of what's still
+open** -- real data still needed, ongoing maintenance, and what must
+happen before this repo is used in a college application (it's
+currently private).
+
 ## Why this exists
 
 Soil moisture, air temperature, humidity, soil temperature, and light all
