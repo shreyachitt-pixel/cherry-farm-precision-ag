@@ -44,6 +44,13 @@ status anywhere that isn't committed to the repo.
   `data/calibration/soil_moisture_calibration_TEMPLATE.csv`.
 - [ ] **station_3 doesn't exist yet.** No third sensor station has
   been deployed.
+- [x] **Field-check the station_2 sensor-2 dry reading.** Confirmed
+  2026-09-27: a clogged sprinkler line near the `soil_moisture_2` probe
+  was starving that spot of water (real dry pocket, not a sensor
+  fault) -- cleared and fixed. Full record in
+  `data/field_hypotheses_log.md`. Still worth checking the next real
+  station_2 export to confirm the reading recovers now that the clog
+  is cleared.
 
 ## Ongoing maintenance (recurring, not one-time)
 
